@@ -395,17 +395,63 @@ Phase 1 — Core infrastructure:
    - Ledger database.
 4. Implement file storage system using defined folder structure.
 
-Phase 2 — Normal user app flow:
-5. Build Login Page.
-6. Build Home Page with function selection:
-   - Email function
-   - Ledger mapping function.
-7. Build file upload interface.
-8. Implement file parsing and validation logic.
-9. Implement duplicate detection and account matching.
-10. Implement missing period detection.
-11. Implement consolidation engine.
-12. Implement email generation logic.
+Phase 2 — Normal user app flow
+
+Phase 2A — Backend pipeline (NO UI, NO AI)
+
+5. Implement file upload API
+   - Multipart upload endpoint
+   - Save raw files into user_data/Business/Period/raw/
+   - Store file metadata in database
+
+6. Implement file validation and parsing (NO AI)
+   - File type validation (CSV/PDF)
+   - Header validation
+   - Row format checks
+   - Reject malformed inputs
+
+7. Implement duplicate detection and account matching (Rule-based only)
+   - Hash-based duplicate detection
+   - Date + amount + reference matching
+   - Deterministic account mapping rules
+
+8. Implement missing accounting period detection
+   - Compare uploaded files vs expected periods
+   - Flag missing months/periods
+
+9. Implement consolidation engine (Deterministic)
+   - Merge validated transaction data
+   - Produce normalized transaction table
+   - Output consolidated dataset
+
+10. Implement email generation logic (Template-based)
+    - Predefined templates
+    - Variable injection
+    - NO AI text generation
+
+
+Phase 2B — Frontend flow (UI only)
+
+11. Build Login Page
+    - Connect to existing auth system
+
+12. Build Home Page function selector
+    - Email function
+    - Ledger mapping function
+
+13. Build file upload interface
+    - Drag/drop upload
+    - Upload progress indicator
+    - Status feedback
+
+Phase 2C — Optional AI extension (DISABLED BY DEFAULT)
+
+14. Add AI fallback service (isolated)
+    - Only used for fuzzy merchant matching
+    - Must require feature flag enable
+    - Token usage must be logged
+    - Hard monthly cap enforced
+
 
 Phase 3 — Ledger mapping flow:
 13. Implement opening balance input.
