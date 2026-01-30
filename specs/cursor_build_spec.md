@@ -1,3 +1,16 @@
+# AI Usage Policy
+
+- Do not use AI for deterministic logic:
+  sorting, parsing, consolidation, balances, date handling, file IO, email templates.
+
+- AI is allowed only for:
+  - Ledger description matching fallback
+  - Optional PDF text cleanup
+
+- Default model must be gpt-4.1-mini (or cheapest equivalent).
+- Max tokens per request: 300.
+- Temperature: 0.
+
 # App Summary
 This app allows users to upload bank statements and credit card statements (PDF, CSV, Excel) to detect missing accounting periods, consolidate files, draft formal missing-period emails, and generate PAY (Money Out) and REC (Money In) CSV files for ledger import. The app has two roles: normal users and admin users with additional management permissions.
 
