@@ -1,6 +1,7 @@
 import fs from "fs";
 // @ts-ignore
-import * as pdf from "pdf-parse";
+import pdf from "pdf-parse";
+
 
 import OpenAI from "openai";
 import { ParsedRowResult } from "./types";
