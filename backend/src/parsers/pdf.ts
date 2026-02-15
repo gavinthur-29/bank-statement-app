@@ -5,24 +5,36 @@ import * as pdf from "pdf-parse";
 import OpenAI from "openai";
 import { ParsedRowResult } from "./types";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function parsePdfFile(
   filePath: string
 ): Promise<ParsedRowResult> {
+  console.log("🔥 PDF PARSER STARTED 🔥");
+
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not set in environment");
+  }
+
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
   try {
+    // --- Read file ---
     const buffer = fs.readFileSync(filePath);
+    console.log("PDF file loaded. Size:", buffer.length);
+
+    // --- Extract text ---
     const data = await (pdf as any)(buffer);
+    const text = data?.text ?? "";
 
-    const text = data.text;
+    console.log("PDF TEXT LENGTH:", text.length);
+    console.log("First 300 chars:", text.slice(0, 300));
 
-console.log("🔥 PDF PARSER HIT 🔥");
-console.log("PDF TEXT LENGTH:", text?.length ?? "NO TEXT");
-console.log("First 300 chars:", text?.slice(0, 300));
+    if (!text || text.trim().length < 20) {
+      throw new Error("PDF contains insufficient extractable text");
+    }
 
-
+    // --- Build prompt ---
     const prompt = `
 You are extracting bank transactions from a bank statement PDF.
 
@@ -47,12 +59,15 @@ Rules:
 - If balance is unavailable, use null.
 - Return ONLY JSON.
 - Do not include explanations.
-    
+
 Bank statement text:
 """
 ${text.slice(0, 15000)}
 """
 `;
+
+    // --- Call OpenAI ---
+    console.log("Calling OpenAI...");
 
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
@@ -69,28 +84,41 @@ ${text.slice(0, 15000)}
       ],
     });
 
-    const content = response.choices[0]?.message?.content;
+    const content = response.choices?.[0]?.message?.content;
 
     if (!content) {
-      throw new Error("PDF AI parsing failed: empty response");
+      throw new Error("OpenAI returned empty response");
     }
 
+    console.log("OpenAI response received. Length:", content.length);
+
+    // --- Parse JSON safely ---
     let parsed: any;
+
     try {
       parsed = JSON.parse(content);
-    } catch {
-      throw new Error("PDF AI parsing failed: invalid JSON");
+    } catch (parseError) {
+      console.error("Invalid JSON from OpenAI:", content);
+      throw new Error("OpenAI returned invalid JSON");
     }
 
+    if (!Array.isArray(parsed.rows)) {
+      throw new Error("OpenAI response missing 'rows' array");
+    }
+
+    console.log("Parsed rows:", parsed.rows.length);
+
     return {
-      rows: parsed.rows ?? [],
+      rows: parsed.rows,
       errors: [],
       warnings: [],
     };
   } catch (err: any) {
+    console.error("❌ PDF PARSER ERROR:", err);
+
     return {
       rows: [],
-      errors: [err.message ?? "Unknown PDF parsing error"],
+      errors: [err?.message ?? "Unknown PDF parsing error"],
       warnings: [],
     };
   }
