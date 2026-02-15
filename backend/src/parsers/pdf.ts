@@ -2,9 +2,20 @@ import fs from "fs";
 import OpenAI from "openai";
 import { ParsedRowResult } from "./types";
 
-// 🔒 Force CommonJS require (prevents ESM/default export issues on Render)
+// 🔒 Robust loader that handles ALL module export formats
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdf = require("pdf-parse");
+const pdfModule = require("pdf-parse");
+
+const pdf =
+  typeof pdfModule === "function"
+    ? pdfModule
+    : typeof pdfModule?.default === "function"
+    ? pdfModule.default
+    : null;
+
+if (!pdf) {
+  throw new Error("Failed to load pdf-parse correctly");
+}
 
 export async function parsePdfFile(
   filePath: string
@@ -67,7 +78,6 @@ ${text.slice(0, 15000)}
 """
 `;
 
-    // --- Call OpenAI ---
     console.log("Calling OpenAI...");
 
     const response = await client.chat.completions.create({
@@ -93,12 +103,11 @@ ${text.slice(0, 15000)}
 
     console.log("OpenAI response received. Length:", content.length);
 
-    // --- Parse JSON safely ---
     let parsed: any;
 
     try {
       parsed = JSON.parse(content);
-    } catch (parseError) {
+    } catch {
       console.error("Invalid JSON from OpenAI:", content);
       throw new Error("OpenAI returned invalid JSON");
     }
