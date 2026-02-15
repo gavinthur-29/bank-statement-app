@@ -17,7 +17,11 @@ export async function parsePdfFile(
     const data = await (pdf as any)(buffer);
 
     const text = data.text;
-    console.log("PDF TEXT LENGTH:", text.length);
+
+console.log("🔥 PDF PARSER HIT 🔥");
+console.log("PDF TEXT LENGTH:", text?.length ?? "NO TEXT");
+console.log("First 300 chars:", text?.slice(0, 300));
+
 
     const prompt = `
 You are extracting bank transactions from a bank statement PDF.
