@@ -1,10 +1,10 @@
 import fs from "fs";
-// @ts-ignore
-import pdf from "pdf-parse";
-
-
 import OpenAI from "openai";
 import { ParsedRowResult } from "./types";
+
+// 🔒 Force CommonJS require (prevents ESM/default export issues on Render)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdf = require("pdf-parse");
 
 export async function parsePdfFile(
   filePath: string
@@ -25,7 +25,7 @@ export async function parsePdfFile(
     console.log("PDF file loaded. Size:", buffer.length);
 
     // --- Extract text ---
-    const data = await (pdf as any)(buffer);
+    const data = await pdf(buffer);
     const text = data?.text ?? "";
 
     console.log("PDF TEXT LENGTH:", text.length);
