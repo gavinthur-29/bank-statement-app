@@ -52,7 +52,6 @@ export async function ingestFile(
    */
   const accountKey = crypto.randomUUID();
 
-  // Defensive guardrails — fail fast if this contract is broken
   if (!accountKey || typeof accountKey !== "string") {
     throw new Error("Invalid accountKey generated during ingestion");
   }
@@ -65,16 +64,33 @@ export async function ingestFile(
 
   if (mimeType === "text/csv" || originalName.endsWith(".csv")) {
     parseResult = await parseCsvFile(storedPath);
-  } else if (mimeType === "application/pdf" || originalName.endsWith(".pdf")) {
-    parseResult = await parsePdfFile(storedPath);
+
+  } else if (
+    mimeType === "application/pdf" ||
+    originalName.endsWith(".pdf")
+  ) {
+    const pdfResult = await parsePdfFile(storedPath);
+
+    parseResult = {
+      rows: pdfResult.rows.map((row) => ({
+        accountKey,
+        date: row.date,
+        description: row.description,
+        amount: row.amount,
+        balance: row.balance ?? undefined, // convert null → undefined
+      })),
+      errors: pdfResult.errors,
+      warnings: pdfResult.warnings,
+    };
+
   } else {
     throw new Error("Unsupported file type");
   }
 
-  // Inject accountKey into parsed rows (request-scoped only)
-  parseResult.rows = parseResult.rows.map(row => ({
+  // Ensure accountKey exists on every row (CSV + PDF)
+  parseResult.rows = parseResult.rows.map((row) => ({
     ...row,
-    accountKey
+    accountKey,
   }));
 
   return {
@@ -82,8 +98,8 @@ export async function ingestFile(
       storedFilename,
       storedPath,
       checksum,
-      accountKey
+      accountKey,
     },
-    parseResult
+    parseResult,
   };
 }
