@@ -2,21 +2,6 @@ import fs from "fs";
 import OpenAI from "openai";
 import { ParsedRowResult } from "./types";
 
-// 🔒 Robust loader that handles ALL module export formats
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfModule = require("pdf-parse");
-
-const pdf =
-  typeof pdfModule === "function"
-    ? pdfModule
-    : typeof pdfModule?.default === "function"
-    ? pdfModule.default
-    : null;
-
-if (!pdf) {
-  throw new Error("Failed to load pdf-parse correctly");
-}
-
 export async function parsePdfFile(
   filePath: string
 ): Promise<ParsedRowResult> {
@@ -31,6 +16,23 @@ export async function parsePdfFile(
   });
 
   try {
+    // 🔒 Dynamically load pdf-parse safely
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pdfModule = require("pdf-parse");
+
+    const pdf =
+      typeof pdfModule === "function"
+        ? pdfModule
+        : typeof pdfModule?.default === "function"
+        ? pdfModule.default
+        : null;
+
+    console.log("pdf-parse module type:", typeof pdfModule);
+
+    if (!pdf) {
+      throw new Error("pdf-parse did not export a function");
+    }
+
     // --- Read file ---
     const buffer = fs.readFileSync(filePath);
     console.log("PDF file loaded. Size:", buffer.length);
@@ -40,17 +42,16 @@ export async function parsePdfFile(
     const text = data?.text ?? "";
 
     console.log("PDF TEXT LENGTH:", text.length);
-    console.log("First 300 chars:", text.slice(0, 300));
 
     if (!text || text.trim().length < 20) {
       throw new Error("PDF contains insufficient extractable text");
     }
 
-    // --- Build prompt ---
+    // --- Prompt ---
     const prompt = `
-You are extracting bank transactions from a bank statement PDF.
+Extract all bank transactions.
 
-Return strictly valid JSON in this format:
+Return strictly valid JSON:
 
 {
   "rows": [
@@ -64,15 +65,12 @@ Return strictly valid JSON in this format:
 }
 
 Rules:
-- Include ALL transactions.
-- Debits must be negative numbers.
-- Credits must be positive numbers.
-- Convert dates to ISO format YYYY-MM-DD.
-- If balance is unavailable, use null.
-- Return ONLY JSON.
-- Do not include explanations.
+- Debits negative
+- Credits positive
+- ISO dates
+- JSON only
 
-Bank statement text:
+Text:
 """
 ${text.slice(0, 15000)}
 """
@@ -84,14 +82,8 @@ ${text.slice(0, 15000)}
       model: "gpt-4o-mini",
       temperature: 0,
       messages: [
-        {
-          role: "system",
-          content: "You return strictly valid JSON and nothing else.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
+        { role: "system", content: "Return only valid JSON." },
+        { role: "user", content: prompt },
       ],
     });
 
@@ -101,25 +93,19 @@ ${text.slice(0, 15000)}
       throw new Error("OpenAI returned empty response");
     }
 
-    console.log("OpenAI response received. Length:", content.length);
-
-    let parsed: any;
+    let parsed;
 
     try {
       parsed = JSON.parse(content);
     } catch {
-      console.error("Invalid JSON from OpenAI:", content);
+      console.error("Invalid JSON:", content);
       throw new Error("OpenAI returned invalid JSON");
     }
 
-    if (!Array.isArray(parsed.rows)) {
-      throw new Error("OpenAI response missing 'rows' array");
-    }
-
-    console.log("Parsed rows:", parsed.rows.length);
+    console.log("Parsed rows:", parsed.rows?.length ?? 0);
 
     return {
-      rows: parsed.rows,
+      rows: parsed.rows ?? [],
       errors: [],
       warnings: [],
     };
