@@ -16,21 +16,22 @@ export async function parsePdfFile(
   });
 
   try {
-    // 🔒 Dynamically load pdf-parse safely
+    // 🔒 Load pdf-parse (v2.x compatible)
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pdfModule = require("pdf-parse");
 
-    const pdf =
-      typeof pdfModule === "function"
-        ? pdfModule
-        : typeof pdfModule?.default === "function"
-        ? pdfModule.default
-        : null;
-
     console.log("pdf-parse module type:", typeof pdfModule);
 
+    // v2.x exports { parse }
+    const pdf =
+      typeof pdfModule?.parse === "function"
+        ? pdfModule.parse
+        : typeof pdfModule === "function"
+        ? pdfModule
+        : null;
+
     if (!pdf) {
-      throw new Error("pdf-parse did not export a function");
+      throw new Error("pdf-parse export format unsupported");
     }
 
     // --- Read file ---
